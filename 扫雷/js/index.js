@@ -10,8 +10,21 @@ var mineArea = $('.mineArea');
 // 用于获取整张地图
 var tableData = [];
 
+// 用于存储用户插旗的 DOM 元素
+var flagArr = [];
+
 // 初始化格子的下标
 var index = 0;
+// 是否全部添加正确
+var isAllright = true;
+
+// 获取游戏难度选择的所有按钮
+var btns = $$('.level>button');
+
+// 插旗数量的DOM
+var flagNum = $('.flagNum');
+// 当前级别雷数
+var mineNumber = $('.mineNum');
 /* 
 生成地雷的方法
 返回地雷数组
@@ -29,10 +42,21 @@ function initMine() {
 
   return arr.slice(0, curLevel.mineNum);
 }
+// 场景重置
+function clearScene() {
+  mineArea.innerHTML = '';
+  flagArr = [];
+  // 重置插旗的数量为0
+  flagNum.innerHTML = 0;
+  // 重置当前级别的雷数
+  mineNumber.innerHTML = curLevel.mineNum;
+}
 /* 
 游戏初始化
 */
 function init() {
+  // 点击不同位置的内容的时候，清空场景或者重写信息
+  clearScene();
   // 1. 随机生成所选配置对应数量的雷
   mineArray = initMine();
   // console.log(mineArray);
@@ -83,6 +107,21 @@ function init() {
   // console.log(table);
   mineArea.appendChild(table);
   // console.log(tableData);
+  // 每次初始化的时候重新绑定一下事件，因为每次游戏结束的时候移除了事件
+  // 注意使用的是mouseDown 不是click
+
+  mineArea.onmousedown = function (e) {
+    // console.log(e.button);
+    // e.button 左键点击是 0 右键点击是 2
+    if (e.button === 0) {
+      // 用户点击的鼠标左键，进行区域搜索操作
+      searchArea(e.target);
+    }
+    if (e.button === 2) {
+      // 用户点击的鼠标右键，进行插旗操作
+      flag(e.target);
+    }
+  };
 }
 
 /* 
@@ -103,7 +142,67 @@ function searchArea(cell) {
   getArround(cell);
 }
 
-function flag(cell) {}
+/* 
+判断玩家插旗是否全部正确
+如果插旗正确的话 上面既有mine 又有 flag，错误的话就不包含 mine 的样式类
+*/
+function isWin() {
+  for (var i = 0; i < flagArr.length; i++) {
+    if (!flagArr[i].classList.contains('mine')) {
+      return false;
+    }
+  }
+  return true;
+}
+/* 
+分为两种情况
+1.全部插对，游戏胜利
+2.有差错的，游戏失败
+参数 isWin 是一个布尔值，true 代表游戏胜利
+false 代表游戏失败
+*/
+function gameOver(isWin) {
+  var mess = '';
+  if (isWin) {
+    mess = '游戏胜利，你找出了所有的雷！！！';
+  } else {
+    mess = '游戏失败~';
+  }
+  // 可以先插旗后显示消息提示
+  setTimeout(function () {
+    window.alert(mess);
+  }, 0);
+}
+/* 插旗操作 */
+function flag(cell) {
+  // console.log(cell);
+  // 如果点击的DOM包含canFlag才能执行插旗的样式
+  // 右键重复点击插旗取消
+  if (cell.classList.contains('canFlag')) {
+    if (!flagArr.includes(cell)) {
+      // 进行插旗操作
+      flagArr.push(cell);
+      cell.classList.add('flag');
+      // 进行插旗数的判断
+      if (flagArr.length === curLevel.mineNum) {
+        // 判断玩家是否胜利
+        if (isWin()) {
+          gameOver(true);
+        }
+        // 无论游戏胜利还是失败都应该进入 showAnswer 显示最终答案
+        showAnswer();
+      }
+    } else {
+      // 说明这个单元格已经在了
+      // 用户现在是要取消插旗
+      var index = flagArr.indexOf(cell);
+      flagArr.splice(index, 1);
+      cell.classList.remove('flag');
+    }
+
+    flagNum.innerHTML = flagArr.length;
+  }
+}
 
 // 会返回该对象对应的四周边界
 function getBound(obj) {
@@ -148,46 +247,49 @@ function getDOM(obj) {
 
 // cell 接受用户点击的单元格，搜索剩余的九宫格
 function getArround(cell) {
-  cell.parentNode.style.border = 'none';
-  cell.classList.remove('canFlag');
-  // DOM 元素在tableData 中等对应的对象
-  var tableItem = getTableItem(cell);
-  // console.log(tableItem);
-  // 但是用户点击边界可能返回 undefined
-  if (!tableItem) {
-    return;
-  }
-  // 当前的单元格已经被查看
-  tableItem.checked = true;
-  // 得到对应的DOM对象所对应的JS对象，可以查看周围一圈是否有雷
-  var mineNum = findMineNum(tableItem);
-  if (!mineNum) {
-    // 如果周围没有雷则继续搜索
-    var { rowTop, rowBottom, colLeft, colRight } = getBound(tableItem);
-    for (var i = rowTop; i <= rowBottom; i++) {
-      for (var j = colLeft; j <= colRight; j++) {
-        // tableData[i][j] 是js 的对象但是getAround需要的是对应的单元格
-        // getArround(getDOM(tableData[i][j]));
-        if (!tableData[i][j].checked) {
-          getArround(getDOM(tableData[i][j]));
+  // 如果所搜索的单元格已经被插旗了就不再对该单元格进行操作
+  if (!cell.classList.contains('flag')) {
+    cell.parentNode.style.border = 'none';
+    cell.classList.remove('canFlag');
+    // DOM 元素在tableData 中等对应的对象
+    var tableItem = getTableItem(cell);
+    // console.log(tableItem);
+    // 但是用户点击边界可能返回 undefined
+    if (!tableItem) {
+      return;
+    }
+    // 当前的单元格已经被查看
+    tableItem.checked = true;
+    // 得到对应的DOM对象所对应的JS对象，可以查看周围一圈是否有雷
+    var mineNum = findMineNum(tableItem);
+    if (!mineNum) {
+      // 如果周围没有雷则继续搜索
+      var { rowTop, rowBottom, colLeft, colRight } = getBound(tableItem);
+      for (var i = rowTop; i <= rowBottom; i++) {
+        for (var j = colLeft; j <= colRight; j++) {
+          // tableData[i][j] 是js 的对象但是getAround需要的是对应的单元格
+          // getArround(getDOM(tableData[i][j]));
+          if (!tableData[i][j].checked) {
+            getArround(getDOM(tableData[i][j]));
+          }
         }
       }
+    } else {
+      // 周围有雷，当前格子显示对应雷的数量
+      var cl = [
+        'zero',
+        'one',
+        'two',
+        'three',
+        'four',
+        'five',
+        'six',
+        'seven',
+        'eight',
+      ];
+      cell.classList.add(cl[mineNum]);
+      cell.innerHTML = mineNum;
     }
-  } else {
-    // 周围有雷，当前格子显示对应雷的数量
-    var cl = [
-      'zero',
-      'one',
-      'two',
-      'three',
-      'four',
-      'five',
-      'six',
-      'seven',
-      'eight',
-    ];
-    cell.classList.add(cl[mineNum]);
-    cell.innerHTML = mineNum;
   }
 }
 // 找到 对应 DOM 在 tableData 中的 JS 对象
@@ -211,31 +313,56 @@ function showAnswer() {
   var mineArr = $$('td>div.mine');
   for (var i = 0; i < mineArr.length; i++) {
     mineArr[i].style.opacity = 1;
-    // 1.获取到该DOM 元素在 tableData 里面所对应的对象
   }
+  // 遍历玩家的插旗
+  for (var i = 0; i < flagArr.length; i++) {
+    if (flagArr[i].classList.contains('mine')) {
+      // 说明插旗插对了添加绿色否则添加红色
+      flagArr[i].classList.add('right');
+    } else {
+      flagArr[i].classList.add('error');
+      isAllright = false;
+    }
+  }
+  if (!isAllright || flagArr.length !== curLevel.mineNum) {
+    gameOver(false);
+  }
+  // 取消事件
+  mineArea.onmousedown = null;
 }
 
 /* 
 绑定事件
 */
 function bindEvent() {
-  // 鼠标点击事件
-  mineArea.onmousedown = function (e) {
-    // console.log(e.button);
-    // e.button 左键点击是 0 右键点击是 2
-    if (e.button === 0) {
-      // 用户点击的鼠标左键，进行区域搜索操作
-      searchArea(e.target);
-    }
-    if (e.button === 2) {
-      // 用户点击的鼠标右键，进行插旗操作
-      flag(e.target);
-    }
-  };
   // 阻止默认的鼠标右键的行为
   // 鼠标右键点击出现右键菜单
   mineArea.oncontextmenu = function (e) {
     e.preventDefault();
+  };
+
+  // 游戏难度选择
+  $('.level').onclick = function (e) {
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].classList.remove('active');
+    }
+    e.target.classList.add('active');
+    switch (e.target.innerHTML) {
+      case '初级': {
+        curLevel = config.easy;
+        break;
+      }
+      case '中级': {
+        curLevel = config.normal;
+        break;
+      }
+      case '高级': {
+        curLevel = config.hard;
+        break;
+      }
+    }
+    init();
+    s;
   };
 }
 

@@ -9,7 +9,7 @@ h1 {
   text-align: center;
   font-size: 46px;
   font-weight: 100;
-  margin: 20px auto 20px auto;
+  margin: 16px auto 16px auto;
 }
 .level {
   text-align: center;
@@ -34,7 +34,7 @@ h1 {
 .info {
   text-align: center;
   font-weight: 200;
-  margin: 10px auto;
+  margin: 8px auto;
 }
 
 /* 表格相关样式 */
@@ -44,13 +44,13 @@ table {
 }
 
 table td {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   background: #ccc;
   border: 2px solid;
   border-color: #fff #a1a1a1 #a1a1a1 #fff;
   text-align: center;
-  line-height: 22px;
+  line-height: 20px;
   font-weight: bold;
   cursor: pointer;
 }
@@ -62,7 +62,8 @@ td > div {
 /* 显示地雷 */
 td > div.mine {
   background: #ccc url('../images/mine.png') center/cover no-repeat;
-  opacity: 0.5;
+  /* opacity: 0.5; */
+  opacity: 0;
 }
 
 /* 显示小旗 */
@@ -131,4 +132,7 @@ td > div.eight {
   border-color: #d9d9d9;
   background: #d9d9d9;
   color: #22ee0f;
+}
+.mineArea {
+  margin-bottom: 20px;
 }
